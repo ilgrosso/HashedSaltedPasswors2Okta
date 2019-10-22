@@ -3,9 +3,11 @@
   <modelVersion>4.0.0</modelVersion>
   
   <groupId>net.tirasa.test</groupId>
-  <artifactId>mavenproject1</artifactId>
+  <artifactId>hashed-salted-pwd-okta</artifactId>
   <version>1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
+  
+  <name>HashedSaltedPasswors2Okta</name>
   
   <properties>
     <cxf.version>3.2.10</cxf.version>

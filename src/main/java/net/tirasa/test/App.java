@@ -1,4 +1,4 @@
-package net.tirasa.test.mavenproject1;
+package net.tirasa.test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -7,6 +7,7 @@ import com.okta.sdk.authc.credentials.TokenClientCredentials;
 import com.okta.sdk.client.Client;
 import com.okta.sdk.client.Clients;
 import com.okta.sdk.impl.resource.DefaultUserBuilder;
+import com.okta.sdk.resource.user.UserBuilder;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Base64;
@@ -26,7 +27,8 @@ public class App {
 
     private static String TOKEN;
 
-    private enum Algorithm {
+    public enum Algorithm {
+        SSHA("SHA-1", 160 / 8),
         SHA256("SHA-256", 256 / 8),
         SHA512("SHA-512", 512 / 8);
 
@@ -67,8 +69,7 @@ public class App {
             }
             saltBytes = new byte[saltLength];
             System.arraycopy(decodedBytes, 0, digestBytes, 0, algorithm.getLength());
-            System.arraycopy(decodedBytes, algorithm.getLength(), saltBytes, 0,
-                    saltLength);
+            System.arraycopy(decodedBytes, algorithm.getLength(), saltBytes, 0, saltLength);
         } catch (Exception e) {
             throw e;
         }
@@ -98,9 +99,10 @@ public class App {
     }
 
     private static void createUserViaREST(
+            final Algorithm algorithm,
             final String email,
             final String base64Salt,
-            final String base64HashPlusSalt)
+            final String base64Hash)
             throws JsonProcessingException {
 
         ObjectMapper mapper = new ObjectMapper();
@@ -115,10 +117,10 @@ public class App {
         req.set("profile", profile);
 
         ObjectNode hashNode = mapper.createObjectNode();
-        hashNode.put("algorithm", "SHA-256");
+        hashNode.put("algorithm", algorithm.getName());
         hashNode.put("salt", base64Salt);
         hashNode.put("saltOrder", "POSTFIX");
-        hashNode.put("value", base64HashPlusSalt);
+        hashNode.put("value", base64Hash);
 
         ObjectNode password = mapper.createObjectNode();
         password.set("hash", hashNode);
@@ -128,7 +130,7 @@ public class App {
         req.set("credentials", credentials);
 
         JAXRSClientFactoryBean bean = new JAXRSClientFactoryBean();
-        bean.setAddress(BASE_URL + "/api/v1/users?activate=false");
+        bean.setAddress(BASE_URL + "/api/v1/users?activate=true");
         bean.setFeatures(Arrays.asList(new LoggingFeature()));
         WebClient webClient = bean.createWebClient();
 
@@ -141,23 +143,33 @@ public class App {
     }
 
     private static void createUserViaSDK(
+            final Algorithm algorithm,
             final String email,
             final String base64Salt,
-            final String base64HashPlusSalt) {
+            final String base64Hash) {
 
         Client client = Clients.builder().
                 setOrgUrl(BASE_URL).
                 setClientCredentials(new TokenClientCredentials(TOKEN)).
                 build();
 
-        new DefaultUserBuilder().
-                setFirstName("Joe").
-                setLastName("Coder").
-                setEmail(email).
-                setSha512PasswordHash(
-                        base64HashPlusSalt,
-                        base64Salt, "POSTFIX").
-                buildAndCreate(client);
+        UserBuilder userBuilder =
+                new DefaultUserBuilder().
+                        setFirstName("Joe").
+                        setLastName("Coder").
+                        setEmail(email);
+        switch (algorithm) {
+            case SSHA:
+                userBuilder.setSha1PasswordHash(base64Hash, base64Salt, "POSTFIX");
+                break;
+            case SHA256:
+                userBuilder.setSha256PasswordHash(base64Hash, base64Salt, "POSTFIX");
+                break;
+            case SHA512:
+                userBuilder.setSha512PasswordHash(base64Hash, base64Salt, "POSTFIX");
+                break;
+        }
+        userBuilder.buildAndCreate(client);
     }
 
     public static void main(String[] args) throws DecoderException, Exception {
@@ -166,13 +178,13 @@ public class App {
         BASE_URL = props.getProperty("base");
         TOKEN = props.getProperty("token");
 
-        String hashed =
-                "e1NTSEE1MTJ9VkhjNnVrSXNUWkowNmFWd1dDOW5KR1ZORi9XeU0zRVJJYlYxelRTY205dnY0MFIrS1gvL0phOUxuVU5nbHZnQ2ludkZQMERpNmZRaVo2YWM1RHluYnhyaWNjb1k0VFhS";
-//        String hashed = Base64.getMimeEncoder().encodeToString(
-//                "{SSHA256}Zn4FC1Jvm5eZpBxkvlNwhSCl53plV9tH4Gvw2Jo5jZbaVabBSWT1dw==".getBytes());
+        // String hashed =
+        // "e1NTSEE1MTJ9VkhjNnVrSXNUWkowNmFWd1dDOW5KR1ZORi9XeU0zRVJJYlYxelRTY205dnY0MFIrS1gvL0phOUxuVU5nbHZnQ2ludkZQMERpNmZRaVo2YWM1RHluYnhyaWNjb1k0VFhS";
+        String hashed = Base64.getMimeEncoder().encodeToString(
+                "{SSHA}4poMuv5NxOAdLHW8VR+UIP/mfLHmka8TMRWRwg==".getBytes());
 
-        String input = "Welcome123";
-//        String input = "Password1";
+        //String input = "Welcome123";
+        String input = "Password123";
 
         String decoded = new String(Base64.getMimeDecoder().decode(hashed));
         System.out.println("DECODED:\t" + decoded);
@@ -195,9 +207,9 @@ public class App {
         String base64Salt = Base64.getMimeEncoder().encodeToString(Hex.decodeHex(hexSalt));
         System.out.println("SALT:\t\t" + base64Salt);
 
-        System.out.println("MATCH?\t\t" + passwordMatches(Algorithm.SHA512, input, base64HashPlusSalt));
+        System.out.println("MATCH?\t\t" + passwordMatches(Algorithm.SSHA, input, base64HashPlusSalt));
 
-        //createUserViaREST("joe.coder32@example.com", base64Salt, base64HashPlusSalt);
-        //createUserViaSDK("joe.coder32@example.com", base64Salt, base64HashPlusSalt);
+        //createUserViaREST(Algorithm.SSHA, "joe.coder56@example.com", base64Salt, base64Hash);
+        //createUserViaSDK(Algorithm.SSHA, "joe.coder57@example.com", base64Salt, base64Hash);
     }
 }
