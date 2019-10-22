@@ -10,6 +10,7 @@ import com.okta.sdk.impl.resource.DefaultUserBuilder;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Properties;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -21,7 +22,9 @@ import org.apache.cxf.jaxrs.client.WebClient;
 
 public class App {
 
-    private static final String BASE_URL = "https://dev-800826.okta.com/";
+    private static String BASE_URL;
+
+    private static String TOKEN;
 
     private enum Algorithm {
         SHA256("SHA-256", 256 / 8),
@@ -158,6 +161,11 @@ public class App {
     }
 
     public static void main(String[] args) throws DecoderException, Exception {
+        Properties props = new Properties();
+        props.load(App.class.getResourceAsStream("/okta.properties"));
+        BASE_URL = props.getProperty("base");
+        TOKEN = props.getProperty("token");
+
         String hashed =
                 "e1NTSEE1MTJ9VkhjNnVrSXNUWkowNmFWd1dDOW5KR1ZORi9XeU0zRVJJYlYxelRTY205dnY0MFIrS1gvL0phOUxuVU5nbHZnQ2ludkZQMERpNmZRaVo2YWM1RHluYnhyaWNjb1k0VFhS";
 //        String hashed = Base64.getMimeEncoder().encodeToString(
