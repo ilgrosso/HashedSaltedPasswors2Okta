@@ -23,8 +23,6 @@ public class App {
 
     private static final String BASE_URL = "https://dev-800826.okta.com/";
 
-    private static final String TOKEN = "003cjlaIP04zw_upWrm0zsKKRjBWMnx33pyDh2xFbt";
-
     private enum Algorithm {
         SHA256("SHA-256", 256 / 8),
         SHA512("SHA-512", 512 / 8);
